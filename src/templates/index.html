@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Earthquake Explorer — Hyperleaflet</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.8/dist/htmx.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; }
+
+    .leaflet-container, .leaflet-container * { box-sizing: content-box; }
+    .leaflet-container img { max-width: none !important; }
+
+    .layout { display: flex; height: 100vh; }
+    #map { flex: 1; min-width: 0; }
+
+    /* --- Sidebar --- */
+    .sidebar {
+      width: 420px;
+      display: flex;
+      flex-direction: column;
+      background: #1e293b;
+      border-left: 1px solid #334155;
+    }
+
+    .sidebar-header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid #334155;
+    }
+    .sidebar-header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+    }
+    .sidebar-header .subtitle {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    /* --- Stats bar --- */
+    #stats {
+      padding: 10px 20px;
+      background: #0f172a;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .stat-item b { color: #f1f5f9; }
+
+    /* --- Filters --- */
+    .filters {
+      padding: 12px 20px 16px;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .filter-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .filter-row label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #64748b;
+      min-width: 50px;
+    }
+    .filter-row select {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid #334155;
+      border-radius: 4px;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .filter-row select:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+
+    /* --- Time slider --- */
+    .time-slider-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .time-slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .time-slider-label b { color: #e2e8f0; font-weight: 500; }
+
+    .range-slider {
+      position: relative;
+      height: 28px;
+      user-select: none;
+      touch-action: none;
+    }
+    .range-slider .track {
+      position: absolute;
+      top: 12px;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: #334155;
+      border-radius: 2px;
+    }
+    .range-slider .fill {
+      position: absolute;
+      top: 12px;
+      height: 4px;
+      background: #3b82f6;
+      border-radius: 2px;
+    }
+    .range-slider .thumb {
+      position: absolute;
+      top: 6px;
+      width: 16px;
+      height: 16px;
+      margin-left: -8px;
+      background: #e2e8f0;
+      border: 2px solid #3b82f6;
+      border-radius: 50%;
+      cursor: grab;
+      z-index: 2;
+      transition: transform 0.1s;
+    }
+    .range-slider .thumb:hover,
+    .range-slider .thumb.active { transform: scale(1.3); cursor: grabbing; }
+
+    .time-ticks {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #475569;
+      padding: 0 2px;
+    }
+
+    /* hidden inputs for htmx */
+    #filter-start, #filter-end { display: none; }
+
+    /* --- Legend --- */
+    .legend {
+      padding: 10px 20px;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    /* --- Table --- */
+    .table-container {
+      flex: 1;
+      overflow-y: auto;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead { position: sticky; top: 0; z-index: 1; }
+    th {
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #64748b;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+    }
+    td {
+      padding: 6px 12px;
+      font-size: 13px;
+      border-bottom: 1px solid #1e293b;
+      color: #cbd5e1;
+    }
+    .place-cell {
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    tr:hover td { background: #334155; }
+    .empty-state {
+      text-align: center;
+      padding: 32px 12px;
+      color: #64748b;
+    }
+
+    /* htmx transition */
+    .htmx-settling tr { opacity: 0; }
+    tr { transition: opacity 0.1s ease-in; }
+
+    /* htmx indicator */
+    .htmx-request .htmx-indicator { display: inline-block; }
+    .htmx-indicator { display: none; font-size: 11px; color: #64748b; }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+  <div id="map" data-center="[20, 0]" data-zoom="3">
+    <div data-tile="OpenStreetMap" data-default-tile></div>
+  </div>
+
+  <!-- Hidden inputs for HTMX vals -->
+  <input type="hidden" id="filter-start" value="{{ filters.start_date }}">
+  <input type="hidden" id="filter-end" value="{{ filters.end_date }}">
+
+  <!-- Hyperleaflet data source — markers go here -->
+  <div data-hyperleaflet-source id="source" style="display:none"
+       hx-get="/quakes"
+       hx-vals="js:{
+         bbox: hyperleaflet.getBBoxString(),
+         start: document.getElementById('filter-start').value,
+         end: document.getElementById('filter-end').value,
+         min_mag: document.getElementById('filter-mag').value
+       }"
+       hx-trigger="hyperleaflet:ready from:window, map:move delay:300ms from:window, filterChange from:body"
+       hx-swap="innerHTML settle:100ms">
+    {% include "partials/markers.html" %}
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1>Earthquake Explorer</h1>
+      <div class="subtitle">USGS data &middot; M4+ &middot; 5 years <span class="htmx-indicator">&middot; loading...</span></div>
+    </div>
+
+    <div id="stats">
+      {% include "partials/stats.html" %}
+    </div>
+
+    <div class="filters">
+      <!-- Time range slider -->
+      <div class="time-slider-wrap">
+        <div class="time-slider-label">
+          <span><b id="label-start">{{ filters.start_date }}</b></span>
+          <span><b id="label-end">{{ filters.end_date }}</b></span>
+        </div>
+        <div class="range-slider" id="time-slider">
+          <div class="track"></div>
+          <div class="fill" id="slider-fill"></div>
+          <div class="thumb" id="thumb-start"></div>
+          <div class="thumb" id="thumb-end"></div>
+        </div>
+        <div class="time-ticks" id="time-ticks"></div>
+      </div>
+
+      <!-- Magnitude filter -->
+      <div class="filter-row">
+        <label>Min M</label>
+        <select id="filter-mag" onchange="htmx.trigger(document.body, 'filterChange')">
+          <option value="4" {% if filters.min_mag == 4.0 %}selected{% endif %}>M4+</option>
+          <option value="5">M5+</option>
+          <option value="6">M6+</option>
+          <option value="7">M7+</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#ef4444;border:1px solid #dc2626;"></div>
+        Shallow &lt;70km
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#f97316;border:1px solid #ea580c;"></div>
+        Mid 70-300km
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#3b82f6;border:1px solid #2563eb;"></div>
+        Deep &gt;300km
+      </div>
+    </div>
+
+    <div class="table-container" id="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Mag</th>
+            <th>Location</th>
+            <th>Depth</th>
+            <th>When</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% include "partials/rows.html" %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/hyperleaflet.js"></script>
+<script>
+(function() {
+  // --- Time range slider ---
+  const DATA_MIN = new Date('{{ date_range.min_date }}').getTime();
+  const DATA_MAX = new Date('{{ date_range.max_date }}').getTime();
+  const RANGE = DATA_MAX - DATA_MIN;
+
+  const slider = document.getElementById('time-slider');
+  const fill = document.getElementById('slider-fill');
+  const thumbStart = document.getElementById('thumb-start');
+  const thumbEnd = document.getElementById('thumb-end');
+  const labelStart = document.getElementById('label-start');
+  const labelEnd = document.getElementById('label-end');
+  const inputStart = document.getElementById('filter-start');
+  const inputEnd = document.getElementById('filter-end');
+
+  // Initial positions from server values
+  let startRatio = (new Date('{{ filters.start_date }}').getTime() - DATA_MIN) / RANGE;
+  let endRatio = (new Date('{{ filters.end_date }}').getTime() - DATA_MIN) / RANGE;
+
+  function ratioToDate(ratio) {
+    const ms = DATA_MIN + ratio * RANGE;
+    const d = new Date(ms);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  function formatLabel(dateStr) {
+    const d = new Date(dateStr);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  }
+
+  function render() {
+    const pctStart = startRatio * 100;
+    const pctEnd = endRatio * 100;
+
+    thumbStart.style.left = pctStart + '%';
+    thumbEnd.style.left = pctEnd + '%';
+    fill.style.left = pctStart + '%';
+    fill.style.width = (pctEnd - pctStart) + '%';
+
+    const startDate = ratioToDate(startRatio);
+    const endDate = ratioToDate(endRatio);
+
+    labelStart.textContent = formatLabel(startDate);
+    labelEnd.textContent = formatLabel(endDate);
+
+    inputStart.value = startDate;
+    inputEnd.value = endDate;
+  }
+
+  // Build tick marks (year labels)
+  function buildTicks() {
+    const ticks = document.getElementById('time-ticks');
+    const startYear = new Date(DATA_MIN).getFullYear();
+    const endYear = new Date(DATA_MAX).getFullYear();
+    for (let y = startYear; y <= endYear; y++) {
+      const ms = new Date(y + '-01-01').getTime();
+      const ratio = (ms - DATA_MIN) / RANGE;
+      if (ratio < 0 || ratio > 1) continue;
+      const tick = document.createElement('span');
+      tick.textContent = y;
+      tick.style.position = 'absolute';
+      tick.style.left = (ratio * 100) + '%';
+      tick.style.transform = 'translateX(-50%)';
+      ticks.appendChild(tick);
+    }
+    // Make ticks container relative for absolute children
+    ticks.style.position = 'relative';
+    ticks.style.height = '14px';
+  }
+
+  // Drag logic
+  let activeThumb = null;
+  let debounceTimer = null;
+
+  function getSliderRatio(clientX) {
+    const rect = slider.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  }
+
+  function onPointerDown(e) {
+    e.preventDefault();
+    const target = e.target;
+    if (target === thumbStart) {
+      activeThumb = 'start';
+      thumbStart.classList.add('active');
+    } else if (target === thumbEnd) {
+      activeThumb = 'end';
+      thumbEnd.classList.add('active');
+    } else if (target === fill || target.classList.contains('track')) {
+      // Click on track — move nearest thumb
+      const ratio = getSliderRatio(e.clientX);
+      const distStart = Math.abs(ratio - startRatio);
+      const distEnd = Math.abs(ratio - endRatio);
+      if (distStart < distEnd) {
+        activeThumb = 'start';
+        startRatio = Math.min(ratio, endRatio - 0.005);
+        thumbStart.classList.add('active');
+      } else {
+        activeThumb = 'end';
+        endRatio = Math.max(ratio, startRatio + 0.005);
+        thumbEnd.classList.add('active');
+      }
+      render();
+    }
+    if (activeThumb) {
+      document.addEventListener('pointermove', onPointerMove);
+      document.addEventListener('pointerup', onPointerUp);
+    }
+  }
+
+  function onPointerMove(e) {
+    if (!activeThumb) return;
+    const ratio = getSliderRatio(e.clientX);
+    if (activeThumb === 'start') {
+      startRatio = Math.max(0, Math.min(ratio, endRatio - 0.005));
+    } else {
+      endRatio = Math.min(1, Math.max(ratio, startRatio + 0.005));
+    }
+    render();
+    // Debounce the HTMX trigger while dragging
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function() {
+      htmx.trigger(document.body, 'filterChange');
+    }, 400);
+  }
+
+  function onPointerUp() {
+    if (activeThumb === 'start') thumbStart.classList.remove('active');
+    if (activeThumb === 'end') thumbEnd.classList.remove('active');
+    activeThumb = null;
+    document.removeEventListener('pointermove', onPointerMove);
+    document.removeEventListener('pointerup', onPointerUp);
+    // Fire immediately on release
+    clearTimeout(debounceTimer);
+    htmx.trigger(document.body, 'filterChange');
+  }
+
+  slider.addEventListener('pointerdown', onPointerDown);
+
+  // Init
+  render();
+  buildTicks();
+})();
+</script>
+</body>
+</html>

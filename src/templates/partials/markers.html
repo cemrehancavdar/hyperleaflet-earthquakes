@@ -1,0 +1,13 @@
+{% for q in quakes %}
+{% set stroke, fill = depth_color(q.depth) %}
+<div data-id="{{ q.id }}"
+     data-geometry="[{{ q.lat }}, {{ q.lng }}]"
+     data-geometry-type="CircleMarker"
+     data-radius="{{ mag_radius(q.mag) }}"
+     data-color="{{ stroke }}"
+     data-fill-color="{{ fill }}"
+     data-fill-opacity="0.6"
+     data-weight="1"
+     data-popup="<b>M{{ '%.1f'|format(q.mag) }}</b> {{ q.mag_type or '' }}<br>{{ q.place or 'Unknown' }}<br>Depth: {{ '%.0f'|format(q.depth) }}km<br>{{ format_time(q.time) }}{% if q.tsunami %}<br><b>Tsunami warning</b>{% endif %}">
+</div>
+{% endfor %}

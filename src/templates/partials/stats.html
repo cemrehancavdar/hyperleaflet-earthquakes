@@ -1,0 +1,6 @@
+<span class="stat-item"><b>{{ stats.count }}</b> quakes</span>
+{% if stats.count > 0 %}
+<span class="stat-item">Max <b>M{{ stats.max_mag }}</b></span>
+<span class="stat-item">Avg <b>M{{ stats.avg_mag }}</b></span>
+<span class="stat-item">Avg depth <b>{{ stats.avg_depth|int }}km</b></span>
+{% endif %}

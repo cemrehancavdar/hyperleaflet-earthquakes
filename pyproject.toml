@@ -1,0 +1,10 @@
+[project]
+name = "hyperleaflet-earthquakes"
+version = "0.1.0"
+description = "Earthquake explorer demo — Hyperleaflet + FastAPI + USGS data in SQLite"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi[standard]>=0.115.0",
+    "jinja2>=3.1.0",
+    "httpx>=0.27.0",
+]

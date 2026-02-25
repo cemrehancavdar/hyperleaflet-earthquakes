@@ -1,0 +1,15 @@
+{% for q in quakes %}
+<tr>
+  <td>
+    {% set stroke, fill = depth_color(q.depth) %}
+    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{{ fill }};border:1px solid {{ stroke }};vertical-align:middle;margin-right:4px;"></span>
+    {{ '%.1f'|format(q.mag) }}
+  </td>
+  <td class="place-cell">{{ q.place or 'Unknown location' }}</td>
+  <td>{{ '%.0f'|format(q.depth) }}km</td>
+  <td title="{{ format_time(q.time) }}">{{ format_time_relative(q.time) }}</td>
+</tr>
+{% endfor %}
+{% if not quakes %}
+<tr><td colspan="4" class="empty-state">No earthquakes match your filters</td></tr>
+{% endif %}
