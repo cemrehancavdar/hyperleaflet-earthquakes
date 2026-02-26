@@ -8,6 +8,17 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/htmx.org@2.0.8/dist/htmx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/gnat/surreal@main/surreal.js"></script>
+  <script>
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function formatDate(ts) {
+    var d = new Date(Number(ts));
+    return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear();
+  }
+  function tsToDate(ts) {
+    var d = new Date(Number(ts));
+    return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
+  }
+  </script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; }
@@ -280,17 +291,6 @@
 
 <script src="https://unpkg.com/hyperleaflet@0.5.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/toolcool-range-slider/dist/toolcool-range-slider.min.js"></script>
-<script>
-// The only JS: date formatting helpers (no browser API for this)
-var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-function formatDate(ts) {
-  var d = new Date(Number(ts));
-  return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear();
-}
-function tsToDate(ts) {
-  var d = new Date(Number(ts));
-  return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
-}
-</script>
+
 </body>
 </html>
