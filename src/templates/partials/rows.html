@@ -1,7 +1,7 @@
 {% for q in quakes %}
-<tr>
+<tr data-quake-id="{{ q.id }}" data-lat="{{ q.lat }}" data-lng="{{ q.lng }}" style="cursor:pointer">
   <td>
-    {% set stroke, fill = depth_color(q.depth) %}
+    {% set stroke, fill = mag_color(q.mag) %}
     <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{{ fill }};border:1px solid {{ stroke }};vertical-align:middle;margin-right:4px;"></span>
     {{ '%.1f'|format(q.mag) }}
   </td>

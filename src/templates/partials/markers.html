@@ -1,5 +1,5 @@
 {% for q in quakes %}
-{% set stroke, fill = depth_color(q.depth) %}
+{% set stroke, fill = mag_color(q.mag) %}
 <div data-id="{{ q.id }}"
      data-geometry="[{{ q.lat }}, {{ q.lng }}]"
      data-geometry-type="CircleMarker"

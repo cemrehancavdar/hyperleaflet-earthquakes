@@ -26,19 +26,21 @@ templates = Jinja2Templates(directory=BASE_DIR / "templates")
 # --- Template helpers ---
 
 
-def depth_color(depth: float) -> tuple[str, str]:
-    """Return (stroke_color, fill_color) based on earthquake depth."""
-    if depth < 70:
-        return "#dc2626", "#ef4444"  # red — shallow
-    elif depth < 300:
-        return "#ea580c", "#f97316"  # orange — intermediate
+def mag_color(mag: float) -> tuple[str, str]:
+    """Return (stroke_color, fill_color) based on earthquake magnitude."""
+    if mag >= 7:
+        return "#991b1b", "#dc2626"  # dark red — major
+    elif mag >= 6:
+        return "#dc2626", "#ef4444"  # red — strong
+    elif mag >= 5:
+        return "#ea580c", "#f97316"  # orange — moderate
     else:
-        return "#2563eb", "#3b82f6"  # blue — deep
+        return "#ca8a04", "#eab308"  # gold — light
 
 
 def mag_radius(mag: float) -> int:
     """Return circle marker radius based on magnitude."""
-    return max(4, int(mag * 3))
+    return max(3, int(mag * 2))
 
 
 def format_time(iso_str: str) -> str:
@@ -72,8 +74,36 @@ def format_time_relative(iso_str: str) -> str:
         return ""
 
 
+def date_to_ms(date_str: str) -> int:
+    """Convert YYYY-MM-DD to Unix milliseconds."""
+    return int(
+        datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp()
+        * 1000
+    )
+
+
+def format_date_label(date_str: str) -> str:
+    """Format YYYY-MM-DD to 'Feb 25, 2026'."""
+    months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+    ]
+    dt = datetime.strptime(date_str, "%Y-%m-%d")
+    return f"{months[dt.month - 1]} {dt.day}, {dt.year}"
+
+
 # Register template globals
-templates.env.globals["depth_color"] = depth_color
+templates.env.globals["mag_color"] = mag_color
 templates.env.globals["mag_radius"] = mag_radius
 templates.env.globals["format_time"] = format_time
 templates.env.globals["format_time_relative"] = format_time_relative
@@ -81,12 +111,21 @@ templates.env.globals["format_time_relative"] = format_time_relative
 
 # --- Default filter values ---
 
+ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000
+ONE_DAY_MS = 24 * 60 * 60 * 1000
+
 
 def default_filters() -> dict:
     now = datetime.now(timezone.utc)
+    start_date = (now - timedelta(days=365)).strftime("%Y-%m-%d")
+    end_date = now.strftime("%Y-%m-%d")
     return {
-        "start_date": (now - timedelta(days=30)).strftime("%Y-%m-%d"),
-        "end_date": now.strftime("%Y-%m-%d"),
+        "start_date": start_date,
+        "end_date": end_date,
+        "start_label": format_date_label(start_date),
+        "end_label": format_date_label(end_date),
+        "start_ts": date_to_ms(start_date),
+        "end_ts": date_to_ms(end_date),
         "min_mag": 4.0,
     }
 
@@ -117,6 +156,10 @@ async def index(request: Request):
         min_mag=filters["min_mag"],
     )
 
+    # Add timestamps to date_range for the slider
+    date_range["min_ts"] = date_to_ms(date_range["min_date"])
+    date_range["max_ts"] = date_to_ms(date_range["max_date"])
+
     return templates.TemplateResponse(
         request=request,
         name="index.html",
@@ -125,6 +168,8 @@ async def index(request: Request):
             "stats": stats,
             "filters": filters,
             "date_range": date_range,
+            "one_year_ms": ONE_YEAR_MS,
+            "one_day_ms": ONE_DAY_MS,
         },
     )
 
