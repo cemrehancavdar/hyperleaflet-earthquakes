@@ -63,7 +63,7 @@ def get_earthquakes(
         SELECT id, time, lat, lng, depth, mag, mag_type, place, tsunami, sig, felt
         FROM earthquakes
         WHERE {" AND ".join(conditions)}
-        ORDER BY time DESC
+        ORDER BY mag DESC, time DESC
         LIMIT ?
     """
 

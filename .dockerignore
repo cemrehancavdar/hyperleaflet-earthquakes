@@ -1,0 +1,7 @@
+.venv
+.git
+.gitignore
+.rodney
+.agent
+data/*.db
+__pycache__
